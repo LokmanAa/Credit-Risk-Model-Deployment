@@ -24,7 +24,7 @@ import pytest       # noqa: F401
 # Définition des constantes
 # -------------------------------------------------------------------------------------------------------------------
 
-API_BASE_URL  = "https://oc-projet-7-c21cbfffa8fb.herokuapp.com"    # URL de base de l'API sur heroku
+API_BASE_URL  = "https://projet7-92ff04160aea.herokuapp.com"    # URL de base de l'API sur heroku
 API_MATRICE   = "/matrice_confusion"
 API_GET       = "/get_client/"
 API_POST      = "/post_client/{Client_new_credit}"
