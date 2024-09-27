@@ -13,20 +13,20 @@ BEST_THRESHOLD = 0.27
 
 @dataclass
 class Client_credit:
-    SK_ID_CURR: int             # l'index du credit
-    FLAG_OWN_REALTY: int             # Si le client est propriétaire de son logement
-    FLAG_OWN_CAR: int             # Si le client a et est propriétaire d'une voiture
-    OWN_CAR_AGE: float           # Age de la voiture
-    NAME_INCOME_TYPE_Working: bool            # True si les revennus du client proviennent d'un salaire
-    DAYS_EMPLOYED: float           # Ancienneté du client dans son emploi actuel
-    AMT_GOODS_PRICE: float           # Prix du bien que le client veut acheter
-    AMT_CREDIT: float           # Montant du prêt
-    EXT_SOURCE_1_x: float           # score from external data source
-    EXT_SOURCE_2_x: float           # score from external data source
-    EXT_SOURCE_3_x: float           # score from external data source
-    PRED_PROBA: float = 0       # probabilité que le client ait des retards de paiement
-    PRED_TARGET: int = 0         # TARGET predite et calculé à partir de PRED_PROBA
-    TARGET: bool = 0        # 0 si le client a des retards de paiement => crédit à rejeter
+    SK_ID_CURR: int           
+    FLAG_OWN_REALTY: int             
+    FLAG_OWN_CAR: int             
+    OWN_CAR_AGE: float         
+    NAME_INCOME_TYPE_Working: bool           
+    DAYS_EMPLOYED: float        
+    AMT_GOODS_PRICE: float          
+    AMT_CREDIT: float          
+    EXT_SOURCE_1_x: float          
+    EXT_SOURCE_2_x: float          
+    EXT_SOURCE_3_x: float           
+    PRED_PROBA: float = 0     
+    PRED_TARGET: int = 0         
+    TARGET: bool = 0       
 
     def to_new_data(self):
         new_data_df = merged_data_df[merged_data_df['SK_ID_CURR'] == self.SK_ID_CURR].copy() 
@@ -49,17 +49,17 @@ class Client_credit:
 
 @dataclass
 class Client_new_credit:
-    SK_ID_CURR: int             # l'index du crédit
-    FLAG_OWN_REALTY: int             # Si le client est propriétaire de son logement
-    FLAG_OWN_CAR: int             # Si le client a et est propriétaire d'une voiture
-    OWN_CAR_AGE: float           # Age de la voiture
-    NAME_INCOME_TYPE_Working:   bool            # True si les revennus du client proviennent d'un salaire
-    DAYS_EMPLOYED: float           # Ancienneté du client dans son emploi actuel
-    AMT_GOODS_PRICE: float           # Prix du bien que le client veut acheter
-    AMT_CREDIT: float           # Montant du prêt
-    EXT_SOURCE_1_x: float           # score from external data source
-    EXT_SOURCE_2_x: float           # score from external data source
-    EXT_SOURCE_3_x: float           # score from external data source
+    SK_ID_CURR: int            
+    FLAG_OWN_REALTY: int            
+    FLAG_OWN_CAR: int           
+    OWN_CAR_AGE: float        
+    NAME_INCOME_TYPE_Working:   bool           
+    DAYS_EMPLOYED: float           
+    AMT_GOODS_PRICE: float          
+    AMT_CREDIT: float          
+    EXT_SOURCE_1_x: float           
+    EXT_SOURCE_2_x: float           
+    EXT_SOURCE_3_x: float           
 
 def Client_credit_from_data(client_data) -> Client_credit:
     return Client_credit(SK_ID_CURR = client_data['SK_ID_CURR'],
@@ -83,27 +83,20 @@ def to_Client_credit(credit: Client_new_credit) -> Client_credit:
                          credit.AMT_GOODS_PRICE, credit.AMT_CREDIT, credit.EXT_SOURCE_1_x,
                          credit.EXT_SOURCE_2_x, credit.EXT_SOURCE_3_x)
 
-
-print("\n   ")
-print("Chargement du modèle pré-entraîné...")
 model = mlflow.sklearn.load_model("mlflow_model")
 print("Chargement des données de test...")
 temp_df  = pd.read_csv(ZIP_TEST_DATA_FILENAME, sep=',', encoding='utf-8', compression='zip')
 min_SK_ID_CURR  = temp_df['SK_ID_CURR'].min()
 max_SK_ID_CURR  = temp_df['SK_ID_CURR'].max()
-
 y = temp_df['TARGET']
 X = temp_df.drop(columns='TARGET')
 y_pred_proba   = model.predict_proba(X)[:, 1]
 y_pred         = np.where(y_pred_proba >= BEST_THRESHOLD, 1, 0)
 merged_data_df = pd.concat([temp_df, pd.DataFrame(y_pred_proba, columns=['y_pred_proba']), pd.DataFrame(y_pred, columns=['y_pred'])], axis=1)
-
 tn, fp, fn, tp = confusion_matrix(y, y_pred).ravel()
 del temp_df
 del y_pred_proba
 del y_pred
-
-print("\nInitialisation de l'API...")
 app = FastAPI(debug=True)
 
 @app.get("/get_client/{SK_ID_CURR}")
@@ -112,18 +105,3 @@ def get_client_by_ID(SK_ID_CURR: int = Path(ge=min_SK_ID_CURR, le=max_SK_ID_CURR
     if part_data_df.shape[0] == 0:
         raise HTTPException(status_code=404, detail="SK_ID_CURR non trouvé !")
     return Client_credit_from_data(part_data_df)
-
-@app.post("/post_client/{Client_new_credit}")
-def calcul_nouveau_credit(new_client: Client_new_credit) -> Client_credit:
-    part_data_df = merged_data_df[merged_data_df['SK_ID_CURR'] == new_client.SK_ID_CURR]
-    if part_data_df.shape[0] == 0:
-        raise HTTPException(status_code=404, detail="SK_ID_CURR non trouvé !")
-    return Client_credit_from_data(to_Client_credit(new_client).to_new_data())
-
-@app.get("/matrice_confusion")
-def matrice_confusion() -> dict:
-    return {"Matrice de confusion": f"TN={tn} - FN={fn} - FP={fp} - TP={tp}",
-            "Quelques TN": ", ".join(map(str, merged_data_df[(merged_data_df['y_pred'] == 1) & (merged_data_df['TARGET'] == 0)]['SK_ID_CURR'].sample(10).to_list())),
-            "Quelques FN": ", ".join(map(str, merged_data_df[(merged_data_df['y_pred'] == 0) & (merged_data_df['TARGET'] == 1)]['SK_ID_CURR'].sample(10).to_list())),
-            "Quelques FP": ", ".join(map(str, merged_data_df[(merged_data_df['y_pred'] == 0) & (merged_data_df['TARGET'] == 0)]['SK_ID_CURR'].sample(10).to_list())),
-            "Quelques TP": ", ".join(map(str, merged_data_df[(merged_data_df['y_pred'] == 1) & (merged_data_df['TARGET'] == 1)]['SK_ID_CURR'].sample(10).to_list()))}
