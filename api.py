@@ -7,17 +7,6 @@ from fastapi import HTTPException
 from sklearn.metrics import confusion_matrix
 import mlflow                                              
 
-from fastapi import FastAPI
-from test_api import app as test_api
-
-main_app = FastAPI()
-
-@main_app.get("/test_api")
-async def redirect_to_test_api():
-    return {"message": "Redirect to test API"}
-
-main_app.mount("/test_api", test_api)
-
 ZIP_TEST_DATA_FILENAME = "test_data.zip"                
 MLFLOW_MODEL_FOLDER = "mlflow_model"          
 BEST_THRESHOLD = 0.27                                   
